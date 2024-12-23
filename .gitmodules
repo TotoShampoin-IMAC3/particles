@@ -1,0 +1,3 @@
+[submodule "modules/toto-zingine"]
+	path = modules/toto-zingine
+	url = git@github.com:TotoShampoin/toto-zingine.git
