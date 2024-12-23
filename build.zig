@@ -18,9 +18,42 @@ pub fn build(b: *std.Build) void {
     });
     exe.root_module.addImport("toto-zingine", toto_zingine.module("toto-zingine"));
 
+    // TODO: Remove this once ZLS is able to read local dependency caches
+    {
+        const toto_zilgebra = b.dependency("toto-zilgebra", .{
+            .target = target,
+            .optimize = optimize,
+        });
+        exe.root_module.addImport("toto-zilgebra", toto_zilgebra.module("toto-zilgebra"));
+        const toto_zigl = b.dependency("toto-zigl", .{
+            .target = target,
+            .optimize = optimize,
+        });
+        exe.root_module.addImport("toto-zigl", toto_zigl.module("toto-zigl"));
+        const zstbi = b.dependency("zstbi", .{
+            .target = target,
+            .optimize = optimize,
+        });
+        exe.root_module.addImport("zstbi", zstbi.module("root"));
+        exe.root_module.linkLibrary(zstbi.artifact("zstbi"));
+        const obj = b.dependency("obj", .{
+            .target = target,
+            .optimize = optimize,
+        });
+        exe.root_module.addImport("obj", obj.module("obj"));
+    }
+
     addImgui(b, exe, .{ .target = target, .optimize = optimize });
 
     b.installArtifact(exe);
+
+    const install = b.getInstallStep();
+    const install_data = b.addInstallDirectory(.{
+        .source_dir = b.path("res"),
+        .install_dir = .{ .prefix = {} },
+        .install_subdir = "bin/res",
+    });
+    install.dependOn(&install_data.step);
 
     const run_cmd = b.addRunArtifact(exe);
     run_cmd.step.dependOn(b.getInstallStep());

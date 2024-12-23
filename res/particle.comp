@@ -1,0 +1,38 @@
+#version 430 core
+
+struct Particle
+{
+    vec4 position;
+    vec4 color;
+    vec2 size;
+};
+
+layout(local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
+
+layout(std430, binding = 0) buffer particlesBuffer
+{
+    Particle particles[];
+};
+
+uniform float u_time;
+uniform int u_size;
+uniform float u_radius;
+
+void main()
+{
+    uint idx = gl_GlobalInvocationID.x;
+    uint r = idx & 1;
+    uint g = (idx >> 1) & 1;
+    uint b = idx % 4 == 0 ? 1 : 0;
+
+    float angle = u_time + float(idx) * 6.283185307179586 / float(u_size);
+
+    Particle particle;
+    particle.position.xyz = vec3(cos(angle), sin(angle * 2.0) * .1, sin(angle)) * u_radius;
+    particle.color = vec4(float(r), float(g), float(b), 1.0);
+    particle.size.xy = vec2(2.0);
+
+    particles[idx].position = particle.position;
+    particles[idx].color = particle.color;
+    particles[idx].size = particle.size;
+}

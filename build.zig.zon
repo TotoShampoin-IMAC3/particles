@@ -9,6 +9,23 @@
             .url = "git+https://gitlab.com/joshua.software.dev/Zig-ImGui.git#808e1f141d8d85d826cf2796781ad74ffc65b08d",
             .hash = "122023abc2b6cd8d9967ab3489750227e520d555e1844312e5638df577435310198e",
         },
+
+        // TODO: Remove this once ZLS is able to read local dependency caches
+        .@"toto-zilgebra" = .{
+            .path = "modules/toto-zingine/modules/toto-zilgebra",
+        },
+        .@"toto-zigl" = .{
+            .path = "modules/toto-zingine/modules/toto-zigl",
+        },
+        .zstbi = .{
+            .url = "https://github.com/zig-gamedev/zstbi/archive/ec86094475a10ba07b141b12b7020f7b88b0e77b.tar.gz",
+            .hash = "122009ea2ff8496071dbe447731a62e6c7c731b6aca5ac3a01992a8d3330d4482a88",
+        },
+        .obj = .{
+            // .url = "git+https://github.com/chip2n/zig-obj.git#4ce054733812eb0b28d97adb0ea1f66f21fd41c8",
+            // .hash = "12205e75ae77fad4d4d2e1b6489270612d8e44c8b9268580f0c9123f0f2fc7175a74",
+            .path = "modules/toto-zingine/modules/zig-obj",
+        },
     },
     .paths = .{
         "build.zig",
