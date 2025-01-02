@@ -6,6 +6,7 @@ pub const ParticleStruct = struct {
     color: zingine.Vec4,
     size: zingine.Vec2,
     __padding: zingine.Vec2,
+    speed: zingine.Vec4,
 };
 
 pub const BillboardMaterial = struct {

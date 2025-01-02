@@ -1,7 +1,7 @@
 const std = @import("std");
 const zingine = @import("toto-zingine");
 
-const Events = struct {
+pub const Events = struct {
     window: *zingine.Window,
     camera: *zingine.Camera,
     control: *zingine.controls.OrbitControl,

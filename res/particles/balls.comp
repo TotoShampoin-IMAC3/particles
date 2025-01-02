@@ -1,0 +1,60 @@
+#version 430 core
+
+struct Particle
+{
+    vec4 position;
+    vec4 color;
+    vec2 size;
+    vec4 speed;
+};
+
+layout(local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
+
+layout(std430, binding = 0) buffer particlesBuffer
+{
+    Particle particles[];
+};
+
+uniform float u_time;
+uniform float u_delta_time;
+uniform int u_size;
+
+uniform vec3 u_box_min;
+uniform vec3 u_box_max;
+uniform vec3 u_gravity;
+
+vec3 inv_lerp_vec3(vec3 a, vec3 b, vec3 v)
+{
+    return (v - a) / (b - a);
+}
+
+void main()
+{
+    uint idx = gl_GlobalInvocationID.x;
+
+    vec4 speed = particles[idx].speed + vec4(u_gravity * u_delta_time, 0.0);
+    vec4 position = particles[idx].position + speed * u_delta_time;
+
+    if (position.x < u_box_min.x || position.x > u_box_max.x)
+    {
+        speed.x = -speed.x;
+        position.x = clamp(position.x, u_box_min.x, u_box_max.x);
+    }
+    if (position.y < u_box_min.y || position.y > u_box_max.y)
+    {
+        speed.y = -speed.y;
+        position.y = clamp(position.y, u_box_min.y, u_box_max.y);
+    }
+    if (position.z < u_box_min.z || position.z > u_box_max.z)
+    {
+        speed.z = -speed.z;
+        position.z = clamp(position.z, u_box_min.z, u_box_max.z);
+    }
+
+    vec3 local_pos = inv_lerp_vec3(u_box_min, u_box_max, position.xyz) * 2.0 - 1.0;
+
+    particles[idx].speed = speed;
+    particles[idx].position = position;
+    particles[idx].color = vec4(local_pos * .5 + .5, 1.0);
+    // particles[idx].size = vec2(2.0);
+}
