@@ -4,6 +4,7 @@ const zingine = @import("toto-zingine");
 const imgui = @import("./imgui.zig");
 const context = @import("./context.zig").context;
 const Events = @import("./events.zig").Events;
+const shaderm = @import("./shaderm.zig");
 
 const zimgui = imgui.zimgui;
 
@@ -25,10 +26,35 @@ pub fn main() !void {
         try std.posix.getrandom(std.mem.asBytes(&seed));
         break :blk seed;
     });
+    var waves_uniforms = [_]shaderm.UniformComponent{
+        .{ .name = "u_radius", .value = .{ .float = 5.0 } },
+        .{ .name = "u_particle_size", .value = .{ .vec2 = zingine.Vec2.new(.{ 0.5, 0.5 }) } },
+    };
+    var box_uniforms = [_]shaderm.UniformComponent{
+        .{ .name = "u_box_min", .value = .{ .vec3 = zingine.Vec3.new(.{ -10.0, -10.0, -10.0 }) } },
+        .{ .name = "u_box_max", .value = .{ .vec3 = zingine.Vec3.new(.{ 10.0, 10.0, 10.0 }) } },
+        .{ .name = "u_gravity", .value = .{ .vec3 = zingine.Vec3.new(.{ 0.0, -9.8, 0.0 }) } },
+    };
 
-    // var compute = try zingine.loaders.shader.loadComputeShader("res/particles/waves.comp");
-    var compute = try zingine.loaders.shader.loadComputeShader("res/particles/balls.comp");
-    defer compute.delete();
+    var comps = [_]shaderm.ShaderComponent{
+        .{
+            .name = "waves",
+            .program = try zingine.loaders.shader.loadComputeShader("res/particles/waves.comp"),
+            .uniforms = &waves_uniforms,
+        },
+        .{
+            .name = "balls",
+            .program = try zingine.loaders.shader.loadComputeShader("res/particles/balls.comp"),
+            .uniforms = &box_uniforms,
+        },
+    };
+    var shaders = shaderm.ShaderManager{
+        .shaders = &comps,
+    };
+    defer shaders.delete();
+
+    shaders.index = 1;
+    var index: i32 = 1;
 
     var init_particles: [64]ParticleStruct = undefined;
     for (&init_particles) |*particle| {
@@ -62,7 +88,6 @@ pub fn main() !void {
         .material = .{ .color = zingine.Color.White.toVec4() },
     };
     defer cube.delete();
-    cube.transform.scaling = zingine.Vec3.new(.{ 10.0, 10.0, 10.0 });
 
     const FAR = 1000.0;
 
@@ -87,27 +112,36 @@ pub fn main() !void {
     zingine.gl.depthFunc(.Less);
     zingine.gl.alphaFunc(.Greater, 0.5);
 
-    compute.use();
-    compute.setUniform("u_size", i32, particles.mesh.instance_count);
-
-    // compute.setUniform("u_radius", f32, 25.0);
-
-    compute.setUniform("u_box_min", zingine.Vec3, zingine.Vec3.new(.{ -10.0, -10.0, -10.0 }));
-    compute.setUniform("u_box_max", zingine.Vec3, zingine.Vec3.new(.{ 10.0, 10.0, 10.0 }));
-    compute.setUniform("u_gravity", zingine.Vec3, zingine.Vec3.new(.{ 0.0, -9.8, 0.0 }));
-
     imgui.initContext();
     imgui.start(&context.window);
+    var style = zimgui.GetStyle().?;
+    style.WindowRounding = 4.0;
+    style.WindowBorderSize = 2.0;
+    style.FrameRounding = 2.0;
 
     var time = zingine.Time.init();
     while (!context.window.shouldClose()) {
+        cube.transform.scaling = val: {
+            const min = box_uniforms[0].value.vec3;
+            const max = box_uniforms[1].value.vec3;
+            break :val max.sub(min).scale(0.5);
+        };
+        cube.transform.position = val: {
+            const min = box_uniforms[0].value.vec3;
+            const max = box_uniforms[1].value.vec3;
+            break :val max.add(min).scale(0.5);
+        };
+
+        const start = zingine.time.getTime();
         camera.transform.position = control.toPosition();
         camera.transform.lookAt(zingine.Vec3.zero, zingine.Vec3.up);
 
         particles.mesh.bindInstanceBase(.ShaderStorage, 0);
-        compute.use();
-        compute.setUniform("u_time", f32, @floatCast(time.current));
-        compute.setUniform("u_delta_time", f32, @floatCast(time.delta));
+        shaders.current().program.use();
+        shaders.current().program.setUniform("u_time", f32, @floatCast(time.current));
+        shaders.current().program.setUniform("u_delta_time", f32, @floatCast(time.delta));
+        shaders.current().program.setUniform("u_size", i32, particles.mesh.instance_count);
+        shaders.current().apply();
         zingine.Compute.dispatch(@intCast(particles.mesh.instance_count), 1, 1);
         zingine.Compute.memoryBarrier(.ShaderStorage);
 
@@ -121,11 +155,38 @@ pub fn main() !void {
         zingine.gl.polygonMode(.FrontAndBack, .Line);
         cube.setupAndRender(camera);
 
+        const end = zingine.time.getTime();
+
         imgui.beginDrawing();
-        if (zimgui.Begin("##Menu")) {
-            zimgui.Text("FPS: %.2f", 1 / time.delta);
+        zimgui.SetNextWindowPos(.{ .x = 0, .y = 0 });
+        zimgui.SetNextWindowSize(.{ .x = 320, .y = 0 });
+        if (zimgui.Begin("Info")) {
+            zimgui.Text("FPS: %.2f", 1 / (end - start));
+            if (zimgui.CollapsingHeader_BoolPtr("Particles", null)) {
+                if (zimgui.InputInt("Shader", &index)) {
+                    shaders.index = @intCast(index);
+                    shaders.index %= shaders.shaders.len;
+                }
+                for (shaders.current().uniforms) |*uniform| {
+                    switch (uniform.value) {
+                        .float => |*value| if (zimgui.InputFloat(@ptrCast(uniform.name), value)) {
+                            shaders.current().program.setUniform(uniform.name, f32, value.*);
+                        },
+                        .vec2 => |*value| if (zimgui.InputFloat2(@ptrCast(uniform.name), &value.data)) {
+                            shaders.current().program.setUniform(uniform.name, zingine.Vec2, value.*);
+                        },
+                        .vec3 => |*value| if (zimgui.InputFloat3(@ptrCast(uniform.name), &value.data)) {
+                            shaders.current().program.setUniform(uniform.name, zingine.Vec3, value.*);
+                        },
+                        .vec4 => |*value| if (zimgui.InputFloat4(@ptrCast(uniform.name), &value.data)) {
+                            shaders.current().program.setUniform(uniform.name, zingine.Vec4, value.*);
+                        },
+                    }
+                }
+            }
             zimgui.End();
         }
+
         imgui.endDrawing();
 
         context.window.swapBuffers();
