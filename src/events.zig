@@ -1,5 +1,6 @@
 const std = @import("std");
 const zingine = @import("toto-zingine");
+const zimgui = @import("Zig-ImGui");
 
 pub const Events = struct {
     window: *zingine.Window,
@@ -45,9 +46,9 @@ pub const Events = struct {
         const data = win.getUserPointer(Self).?;
         if (button == zingine.glfw.GLFW_MOUSE_BUTTON_LEFT) {
             data.mouse_holding = action == zingine.glfw.GLFW_PRESS;
-            // if (zimgui.GetIO().WantCaptureMouse) {
-            //     data.mouse_holding = false;
-            // }
+            if (zimgui.GetIO().WantCaptureMouse) {
+                data.mouse_holding = false;
+            }
         }
     }
     pub fn onScroll(win: zingine.Window, _: f64, dy: f64) void {
