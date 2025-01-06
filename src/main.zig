@@ -106,11 +106,8 @@ pub fn main() !void {
     zingine.gl.enable(.DepthTest);
     zingine.gl.enable(.CullFace);
     zingine.gl.enable(.Blend);
-    zingine.gl.enable(.AlphaTest);
     zingine.gl.cullFace(.Back);
     zingine.gl.blendFunc(.SrcAlpha, .OneMinusSrcAlpha);
-    zingine.gl.depthFunc(.Less);
-    zingine.gl.alphaFunc(.Greater, 0.5);
 
     imgui.initContext();
     imgui.start(&context.window);

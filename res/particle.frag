@@ -19,4 +19,9 @@ void main()
     {
         f_color.a = distance(v_texcoord, vec2(0.5)) < 0.5 ? 1.0 : 0.0;
     }
+
+    if (f_color.a < 0.25)
+    {
+        discard;
+    }
 }
